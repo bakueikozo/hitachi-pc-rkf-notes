@@ -14,8 +14,9 @@ Work in progress. Physical layer identified; application protocol not fully deco
 | PCB silk | `PC-ARF` (likely shared with other Hitachi wall remocons) |
 | Bus terminals | **REMOCON A / B** (2-wire) |
 | PHY transceiver | **MinebeaMitsumi MM1192** (HBS-compatible, AMI) |
-| Main MCU | Renesas **D78F1168A** (78K0R) |
+| Main MCU | Renesas **D78F1168A** (78K0R), confirmed on photo |
 | Ambient sensor | Thermistor TH1 on the remocon board |
+| Reset IC | Mitsubishi **M51953B** |
 
 This bus is **not** the UART “H-Link CN7” (9600 8O1, `MT`/`ST`) used by many Hitachi split ACs and by projects such as [lumixen/esphome-hlink-ac](https://github.com/lumixen/esphome-hlink-ac). Same brand, different physical interface.
 
