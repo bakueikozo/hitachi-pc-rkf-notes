@@ -57,7 +57,15 @@ Indoor unit TB2 ----(2-wire)---- REMOCON A/B
 1. Scope A/B first (DC bias + AMI pulses).
 2. Prefer MM1192 TTL side over hard-wiring MCU GPIO to A/B.
 3. 78K0R serial programmers generally have no flash **read** command; easy firmware dump is unlikely.
-4. DIY PHY: **MAX22088** is usually easier to buy than MM1192.
+4. DIY PHY: **MAX22088** is usually easier to buy than MM1192. Datasheets: [`docs/datasheets/`](datasheets/).
+
+## Datasheets
+
+| Part | File |
+|------|------|
+| MM1192 (on board) | [MM1192_Mitsumi.pdf](datasheets/MM1192_Mitsumi.pdf) |
+| MAX22088 (HBS alt.) | [MAX22088_AnalogDevices.pdf](datasheets/MAX22088_AnalogDevices.pdf) |
+| XL1192 / XL1195 / XL1161 | see [datasheets/README.md](datasheets/README.md) |
 
 ## Note on naming
 

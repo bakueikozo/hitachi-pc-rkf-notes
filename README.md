@@ -31,6 +31,15 @@ See [`docs/photos/`](docs/photos/) and [`docs/teardown.md`](docs/teardown.md).
 - MM1192 product page (MinebeaMitsumi)
 - Practical HBS alternative IC: **MAX22088** (easier to buy than MM1192)
 
+## Datasheets
+
+See [`docs/datasheets/`](docs/datasheets/) for:
+
+- **MM1192** (on-board Mitsumi HBS transceiver) + MinebeaMitsumi product sheet  
+- HBS-compatible alternatives: **MAX22088**, **XL1192**, **XL1195**, **XL1161**  
+
+Index: [`docs/datasheets/README.md`](docs/datasheets/README.md)
+
 ## License
 
 Documentation and photos in this repository: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).  
