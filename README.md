@@ -1,61 +1,63 @@
-# Hitachi PC-RKF / HBS remocon notes
+# 日立 PC-RKF / HBS リモコン解析メモ
 
-Notes from reverse-engineering a Hitachi **PC-RKF** wall remocon (used with industrial dehumidifier **RK-NP12PV2** and related units). Shared for others working on Home Bus (HBS) / AMI remocon buses.
+業務用・産業用除湿機向け壁リモコン **PC-RKF**（実機例: **RK-NP12PV2** 接続）の分解・ロジアナ解析メモです。  
+物理層は Home Bus（HBS）／AMI 系です。
 
-## Status
+## 現状（2026-09-30）
 
-**Partial application decode (2026-09-30).**  
-Physical layer identified; remocon→unit **26-byte** snapshot mapped for run/stop, fan, humidity, powerful, and fan-only mode. Checksum and mid-bytes still open.
+**アプリケーション層は部分解読済み。**  
+物理層を特定し、リモコン→本体の **26バイト**設定フレームについて、運転／停止・風量・湿度・パワフル・送風モードをマップ済み。チェックサム式と中間バイト（idx14–16）は未確定。
 
-Full write-up: **[`docs/protocol-wip.md`](docs/protocol-wip.md)**
+詳細: **[`docs/protocol-wip.md`](docs/protocol-wip.md)**
 
-### Protocol snapshot (MCU-side MM1192 TTL)
+### プロトコル早見（MM1192 マイコン側 TTL）
 
-| Field | Index | Known values |
-|-------|-------|----------------|
-| CMD | 10 | `60` stop/settings, `C1` dehumidify run, `A1` fan-only |
-| FAN | 11 | `08` 弱, `04` 強, `02` 急風 |
-| RH | 17 | decimal % (`0x37`=55, `0x38`=56, `0x46`=70, …) |
-| Powerful | 18 | `40` off, `90` on |
-| Unit ACK | (status) | `40` / `90` / `88` for stop / dehum run / fan-only |
+| 項目 | 位置 | 既知の値 |
+|------|------|----------|
+| 運転コマンド | idx10 | `60` 停止／設定、`C1` 再熱除湿運転、`A1` 送風運転 |
+| 風量 | idx11 | `08` **弱風**、`04` **強風**、`02` **急風** |
+| 目標湿度 | idx17 | 十進 %（例: `0x37`=55%、`0x38`=56%、`0x46`=70%） |
+| パワフル | idx18 | `40` オフ、`90` **パワフル**オン |
+| 本体ACK | 応答フレーム | `40` 停止系／`90` 除湿運転／`88` 送風運転 |
 
-Bit timing ≈ **9600 AMI** (pulse = 0). Probed MM1192 pin1 DATA OUT + pin6 DATA IN.
+ビット周期 ≈ **9600 AMI**（パルスあり＝0）。プローブは MM1192 **1番 DATA OUT** ＋ **6番 DATA IN**。
 
-## Key hardware findings
+## ハードウェア要点
 
-| Item | Value |
-|------|--------|
-| Remocon model | PC-RKF (label example: `PC-RKF H268 RKF-196060`) |
-| PCB silk | `PC-ARF` (likely shared with other Hitachi wall remocons) |
-| Bus terminals | **REMOCON A / B** (2-wire) |
-| PHY transceiver | **MinebeaMitsumi MM1192** (HBS-compatible, AMI) |
-| Main MCU | Renesas **D78F1168A** (78K0R), confirmed on photo |
-| Ambient sensor | Thermistor TH1 on the remocon board |
-| Reset IC | Mitsubishi **M51953B** |
+| 項目 | 内容 |
+|------|------|
+| 型式 | PC-RKF（シール例: `PC-RKF H268 RKF-196060`） |
+| 基板シルク | `PC-ARF`（他の日立壁リモコンと共用の可能性） |
+| 端子 | **リモコン REMOCON A / B**（2線） |
+| バスIC | **MinebeaMitsumi MM1192**（HBS互換・AMI） |
+| 主MCU | Renesas **D78F1168A**（78K0R） |
+| 室温センサ | サーミスタ **TH1** |
+| リセットIC | Mitsubishi **M51953B** |
 
-This bus is **not** the UART “H-Link CN7” (9600 8O1, `MT`/`ST`) used by many Hitachi split ACs and by projects such as [lumixen/esphome-hlink-ac](https://github.com/lumixen/esphome-hlink-ac). Same brand, different physical interface.
+このバスは、エアコン等で使われる UART 系 **H-Link（CN7・9600 8O1・`MT`/`ST`）とは別物**です。  
+[esphome-hlink-ac](https://github.com/lumixen/esphome-hlink-ac) 等のコードは A/B には流用できません。
 
-## Photos / teardown
+## 写真・分解
 
-See [`docs/photos/`](docs/photos/) and [`docs/teardown.md`](docs/teardown.md).
+[`docs/photos/`](docs/photos/) および [`docs/teardown.md`](docs/teardown.md)
 
-## Related public projects
+## 関連リンク
 
-- [lumixen/esphome-hlink-ac](https://github.com/lumixen/esphome-hlink-ac) — UART H-Link for Hitachi AC (different PHY)
+- [lumixen/esphome-hlink-ac](https://github.com/lumixen/esphome-hlink-ac) — 日立エアコン向け UART H-Link（物理層が異なる）
 - [Analog Devices: Introduction to Home Bus](https://www.analog.com/en/resources/design-notes/introduction-to-home-bus.html)
-- MM1192 product page (MinebeaMitsumi)
-- Practical HBS alternative IC: **MAX22088** (easier to buy than MM1192)
+- MM1192 製品ページ（MinebeaMitsumi）
+- DIY向けHBS代替IC: **MAX22088**（MM1192より入手しやすいことが多い）
 
-## Datasheets
+## データシート
 
-See [`docs/datasheets/`](docs/datasheets/) for:
+[`docs/datasheets/`](docs/datasheets/) に以下を保管:
 
-- **MM1192** (on-board Mitsumi HBS transceiver) + MinebeaMitsumi product sheet  
-- HBS-compatible alternatives: **MAX22088**, **XL1192**, **XL1195**, **XL1161**  
+- 搭載 **MM1192** ＋ MinebeaMitsumi 製品シート  
+- HBS互換候補: **MAX22088**、**XL1192**、**XL1195**、**XL1161**  
 
-Index: [`docs/datasheets/README.md`](docs/datasheets/README.md)
+索引: [`docs/datasheets/README.md`](docs/datasheets/README.md)
 
-## License
+## ライセンス
 
-Documentation and photos in this repository: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).  
-No warranty. Do not brick hardware; respect local electrical safety rules.
+本リポジトリの文書・写真: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)  
+無保証。感電・機器破損に注意し、安全を最優先してください。

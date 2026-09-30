@@ -1,72 +1,72 @@
-# PC-RKF teardown notes
+# PC-RKF 分解メモ
 
-Photos retaken 2026-09-29 (higher detail).
+写真は 2026-09-29 に詳細撮り直し。
 
-## Photos
+## 写真
 
-| File | Description |
-|------|-------------|
-| [01_rear_terminals_AB.png](photos/01_rear_terminals_AB.png) | Rear: REMOCON A/B, label `PC-RKF H268 RKF-196060`, PCB `PC-ARF`, CN7, JP1/JP2 |
-| [02_component_lcd_side.png](photos/02_component_lcd_side.png) | Front with LCD: MM1192, buttons BS1–BS9, TH1, LEDs GN/RD |
-| [03_component_mcu_side.png](photos/03_component_mcu_side.png) | MCU side: **D78F1168A**, CN1 (LCD FPC), M51953B, MM1192, TH1 |
-| [04_wiring_manual_floor_inverter.png](photos/04_wiring_manual_floor_inverter.png) | Hitachi sheet: PC-RKF to small floor inverter units (TB2 / CN6 / DSW2-2) |
+| ファイル | 内容 |
+|----------|------|
+| [01_rear_terminals_AB.png](photos/01_rear_terminals_AB.png) | 背面: REMOCON A/B、シール `PC-RKF H268 RKF-196060`、基板 `PC-ARF`、CN7、JP1/JP2 |
+| [02_component_lcd_side.png](photos/02_component_lcd_side.png) | 液晶側: MM1192、ボタン BS1–BS9、TH1、LED GN/RD |
+| [03_component_mcu_side.png](photos/03_component_mcu_side.png) | MCU側: **D78F1168A**、CN1（液晶FPC）、M51953B、MM1192、TH1 |
+| [04_wiring_manual_floor_inverter.png](photos/04_wiring_manual_floor_inverter.png) | 据付シート: 小型床置インバータへの PC-RKF 接続（TB2 / CN6 / DSW2-2） |
 
-## Markings (from photos)
+## 表記（写真から）
 
-| Item | Text |
+| 項目 | 表記 |
 |------|------|
-| Label | PC-RKF / H268 / RKF-196060 |
-| PCB silk | PC-ARF, X59C, 288H1 / 25 10 |
-| Stamp | CXZ11Z (rear) |
-| Terminals | リモコン REMOCON A / B |
-| Bus IC | MITSUMI **MM1192** (HBS / AMI PHY) |
-| Main MCU | Renesas/NEC **D78F1168A** (78K0R), lot `2528AP` |
-| Reset IC | Mitsubishi **M51953B** |
-| LCD | Module in white bezel; FPC via **CN1** |
-| Ambient sensor | **TH1** bead thermistor |
-| Extra | **CN7** 5-pin (rear), JP1/JP2, piezo pattern |
+| シール | PC-RKF / H268 / RKF-196060 |
+| 基板シルク | PC-ARF、X59C、288H1 / 25 10 |
+| スタンプ | CXZ11Z（背面） |
+| 端子 | リモコン REMOCON A / B |
+| バスIC | MITSUMI **MM1192**（HBS / AMI 物理層） |
+| 主MCU | Renesas/NEC **D78F1168A**（78K0R）、ロット `2528AP` |
+| リセットIC | Mitsubishi **M51953B** |
+| 液晶 | 白ベゼルモジュール、FPC は **CN1** |
+| 室温センサ | **TH1** ビーズサーミスタ |
+| その他 | 背面 **CN7** 5pin、JP1/JP2、圧電ブザーパターン |
 
-## Architecture (inferred)
+## 構成（推定）
 
 ```
-Indoor unit TB2 ----(2-wire)---- REMOCON A/B
-                                   |
-                              coupling / supply
-                                   |
-                              MM1192 (HBS / AMI PHY)
-                                   |
-                              TTL Tx/Rx
-                                   |
-                              D78F1168A
-                                |- LCD (CN1)
-                                |- keys BS*
-                                |- TH1
-                                |- M51953B (reset)
+本体 TB2 ----(2線)---- REMOCON A/B
+                         |
+                    結合／給電
+                         |
+                    MM1192（HBS / AMI PHY）
+                         |
+                    TTL Tx/Rx
+                         |
+                    D78F1168A
+                      |- 液晶（CN1）
+                      |- キー BS*
+                      |- TH1
+                      |- M51953B（リセット）
 ```
 
-## Wiring (from Hitachi sheet, small floor inverter)
+## 配線（据付シート・小型床置インバータ）
 
-- Remocon A/B ↔ indoor **TB2** ↔ board **CN6** on **PWB1**
-- Optional extension cable: PRC-□K (twisted pair 0.75 mm²)
-- Multi-unit: up to 10 indoor units, total wiring &lt; 200 m
-- **DSW2 pin 2 = OFF** on every unit when PC-RKF is connected (power off while setting)
-- Keep remocon cable ≥ 30 cm from power lines (or steel conduit + D-class earth)
+- リモコン A/B ↔ 室内機 **TB2** ↔ 基板 **PWB1** の **CN6**
+- 延長ケーブル例: PRC-□K（ツイスト 0.75 mm²）
+- 複数台: 最大10台、総配線長 200 m 未満
+- PC-RKF 接続時は各台 **DSW2-2 = OFF**（電源オフで設定）
+- リモコン線は電源線から 30 cm 以上離す（または鋼製電線管＋D種接地）
 
-## Sniffing / emulation tips
+## スニフ／エミュレートの注意
 
-1. Scope A/B first (DC bias + AMI pulses).
-2. Prefer MM1192 TTL side over hard-wiring MCU GPIO to A/B.
-3. 78K0R serial programmers generally have no flash **read** command; easy firmware dump is unlikely.
-4. DIY PHY: **MAX22088** is usually easier to buy than MM1192. Datasheets: [`docs/datasheets/`](datasheets/).
+1. まず A/B を観測（DCバイアス＋AMIパルス）
+2. MCU GPIO を A/B に直結せず、**MM1192 の TTL 側**を優先
+3. 78K0R 系プログラマは一般にフラッシュ**読出し**コマンドが無く、ファームダンプは期待しにくい
+4. DIY PHY は **MAX22088** の方が MM1192 より入手しやすいことが多い → [`docs/datasheets/`](datasheets/)
 
-## Datasheets
+## データシート
 
-| Part | File |
-|------|------|
-| MM1192 (on board) | [MM1192_Mitsumi.pdf](datasheets/MM1192_Mitsumi.pdf) |
-| MAX22088 (HBS alt.) | [MAX22088_AnalogDevices.pdf](datasheets/MAX22088_AnalogDevices.pdf) |
-| XL1192 / XL1195 / XL1161 | see [datasheets/README.md](datasheets/README.md) |
+| 部品 | ファイル |
+|------|----------|
+| MM1192（搭載） | [MM1192_Mitsumi.pdf](datasheets/MM1192_Mitsumi.pdf) |
+| MAX22088（HBS代替） | [MAX22088_AnalogDevices.pdf](datasheets/MAX22088_AnalogDevices.pdf) |
+| XL1192 / XL1195 / XL1161 | [datasheets/README.md](datasheets/README.md) |
 
-## Note on naming
+## 名称について
 
-This remocon bus is **not** the UART “H-Link CN7” (9600 8O1, `MT`/`ST`) used by many Hitachi split ACs. Same brand family, different interface.
+このリモコンバスは、エアコン等の UART「H-Link CN7」（9600 8O1、`MT`/`ST`）では**ない**。同系列ブランドでもインタフェースが異なる。

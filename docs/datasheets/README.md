@@ -1,36 +1,37 @@
-# Datasheets (HBS / AMI PHY)
+# データシート（HBS / AMI 物理層）
 
-Manufacturer documents redistributed here for offline reference. Copyright remains with the respective manufacturers. Prefer the official product page for the latest revision.
+メーカー資料をオフライン参照用に保管しています。著作権は各メーカーに帰属します。最新版は公式製品ページを優先してください。
 
-## On the PC-RKF board
+## PC-RKF 基板上
 
-| File | Part | Role |
-|------|------|------|
-| [MM1192_Mitsumi.pdf](MM1192_Mitsumi.pdf) | Mitsumi / MinebeaMitsumi **MM1192** | HBS-compatible driver/receiver (AMI). Used on PC-RKF |
-| [MM1192_MinebeaMitsumi_product_sheet.pdf](MM1192_MinebeaMitsumi_product_sheet.pdf) | MM1192XFBE summary | Current product-sheet style PDF from MinebeaMitsumi site |
+| ファイル | 部品 | 役割 |
+|----------|------|------|
+| [MM1192_Mitsumi.pdf](MM1192_Mitsumi.pdf) | Mitsumi / MinebeaMitsumi **MM1192** | HBS互換ドライバ／レシーバ（AMI）。PC-RKF 搭載 |
+| [MM1192_MinebeaMitsumi_product_sheet.pdf](MM1192_MinebeaMitsumi_product_sheet.pdf) | MM1192XFBE 概要 | MinebeaMitsumi サイトの製品シート系 PDF |
 
-Sources:
+入手元の例:
 
-- Full DS (historical Mitsumi layout): Octopart-hosted Mitsumi PDF  
-- Product sheet: https://product.minebeamitsumi.com/en/product/category/ics/hbs/parts/MM1192.pdf  
-- Product page: https://product.minebeamitsumi.com/en/product/category/ics/hbs/parts/MM1192.html  
+- フルデータシート（旧 Mitsumi 体裁）: Octopart 経由の Mitsumi PDF  
+- 製品シート: https://product.minebeamitsumi.com/en/product/category/ics/hbs/parts/MM1192.pdf  
+- 製品ページ: https://product.minebeamitsumi.com/en/product/category/ics/hbs/parts/MM1192.html  
 
-## HBS-compatible alternatives (PHY class)
+## HBS互換の代替候補（物理層クラス）
 
-These claim **HBS / AMI twisted-pair** compatibility. They are **not pin-compatible** with MM1192. Use for DIY sniffers/emulators after verifying levels against a scoped PC-RKF bus. Upper-layer remocon protocol is still Hitachi-proprietary.
+いずれも **HBS / AMI・ツイストペア**互換を謳うもの。MM1192 と **ピン互換ではない**。  
+DIY スニファ／エミュレータ用に、実機 A/B のレベルを確認したうえで検討する。上位のリモコンプロトコルは日立独自のまま。
 
-| File | Part | Notes | Availability |
-|------|------|-------|----------------|
-| [MAX22088_AnalogDevices.pdf](MAX22088_AnalogDevices.pdf) | Analog Devices **MAX22088** | Modern HBS transceiver, active inductor, 5 V LDO, DigiKey etc. | Good |
-| — | Analog Devices **MAX22288** | Related HBS driver (power-sourcing oriented). DS not mirrored here (ADI download timed out) | See [product page](https://www.analog.com/en/products/max22288.html) |
-| [XL1192_XLSEMI.pdf](XL1192_XLSEMI.pdf) | XLSEMI **XL1192** | Explicit MM1192-class HBS driver/receiver (SOP16) | China/broker |
-| [XL1195_XLSEMI.pdf](XL1195_XLSEMI.pdf) | XLSEMI **XL1195** | HBS + dynamic impedance matching | China/broker |
-| [XL1161_XLSEMI.pdf](XL1161_XLSEMI.pdf) | XLSEMI **XL1161** | HBS + 8–32 V → 5 V power management (bus-powered nodes) | China/broker |
+| ファイル | 部品 | メモ | 入手性 |
+|----------|------|------|--------|
+| [MAX22088_AnalogDevices.pdf](MAX22088_AnalogDevices.pdf) | Analog Devices **MAX22088** | 現行HBSトランシーバ、アクティブインダクタ、5V LDO 等。DigiKey 等 | 比較的よい |
+| — | Analog Devices **MAX22288** | 関連HBSドライバ（給電寄り）。本リポ未収録（ADI取得タイムアウト） | [製品ページ](https://www.analog.com/en/products/max22288.html) |
+| [XL1192_XLSEMI.pdf](XL1192_XLSEMI.pdf) | XLSEMI **XL1192** | MM1192級のHBSドライバ／レシーバ（SOP16）明示 | 中国／商社経由 |
+| [XL1195_XLSEMI.pdf](XL1195_XLSEMI.pdf) | XLSEMI **XL1195** | HBS＋動的インピーダンス整合 | 中国／商社経由 |
+| [XL1161_XLSEMI.pdf](XL1161_XLSEMI.pdf) | XLSEMI **XL1161** | HBS＋8–32V→5V電源管理（バス給電ノード向け） | 中国／商社経由 |
 
-Related Mitsumi family (not stored here; older HBS parts): **MM1007**, **MM1034** (with power supply). Search manufacturer / alldatasheet if needed.
+関連の旧 Mitsumi 系（未収録）: **MM1007**、**MM1034**（電源付き）など。必要ならメーカー／alldatasheet を検索。
 
-## Recommendation for this project
+## 本プロジェクトでの推奨
 
-1. **Reference / match OEM remocon:** stick to **MM1192** docs (what is on the board).  
-2. **Build a bus adapter:** prefer **MAX22088** (easier purchasing) unless you can buy MM1192XFBE.  
-3. Always validate DC bias and AMI amplitude on A/B before connecting a DIY node.
+1. **純正リモコンに合わせる参照:** **MM1192** 資料（基板搭載品）  
+2. **バスアダプタ自作:** MM1192XFBE が手に入らなければ **MAX22088** を優先検討  
+3. DIYノード接続前に、必ず A/B の DCバイアスと AMI振幅を実測で確認する

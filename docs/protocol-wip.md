@@ -1,177 +1,177 @@
-# PC-RKF ↔ dehumidifier protocol — WIP notes
+# PC-RKF ↔ 除湿機 プロトコル解析（途中経過）
 
-Status: **partially decoded** (2026-09-30).  
-Hardware under test: wall remocon **PC-RKF** + dehumidifier **RK-NP12PV2** (reheat-only compact floor unit).
+状態: **部分解読**（2026-09-30）  
+対象: 壁リモコン **PC-RKF** ＋ 除湿機 **RK-NP12PV2**（小型床置・再熱専用）
 
-Capture method: ZeroPlus logic analyzer @ 1 MHz on MM1192 MCU-side pins:
+計測: ZeroPlus ロジアナ 1 MHz、MM1192 のマイコン側ピン
 
-| LA | MM1192 pin | Function |
-|----|------------|----------|
-| A0 | 1 | Reception **DATA OUT** (to MCU) |
-| A1 | 6 | **DATA IN** (from MCU) |
+| LA | MM1192 | 役割 |
+|----|--------|------|
+| A0 | 1番 | 受信 **DATA OUT**（→MCU） |
+| A1 | 6番 | **DATA IN**（MCU→） |
 
----
-
-## 1. Physical layer
-
-| Item | Finding |
-|------|---------|
-| Medium | 2-wire remocon bus (REMOCON A/B → unit TB2) |
-| PHY IC | Mitsumi **MM1192** (HBS / AMI) |
-| Bit rate | ~**9600 bps** (bit cell ≈ **104 µs**) |
-| Line code | AMI-style: **pulse present = 0**, absence = 1 |
-| Framing | UART-like over AMI: start `0`, 8 data **LSB first**, stop `1` (`0x00` often has stop quirks) |
-| Inter-byte gap | Often ~1.25 ms between bytes in a burst |
-
-**Not** Hitachi UART **H-Link** (CN7, 9600 8O1, ASCII `MT`/`ST`). Same brand, different PHY and frame format. Public H-Link code (e.g. esphome-hlink-ac) does **not** apply to A/B.
-
-Closest public cousin at PHY only: Japanese Home Bus / Daikin P1P2-style AMI (MM1192 / MAX22088). Application layer is Hitachi-proprietary.
+マニュアル／パネル表記との対応を優先して記述（弱風・強風・急風・パワフル・送風・再熱除湿 など）。
 
 ---
 
-## 2. Exchange pattern (one button action)
+## 1. 物理層
 
-Typical window (~100 ms):
+| 項目 | 内容 |
+|------|------|
+| 媒体 | リモコン 2線（REMOCON A/B → 本体 TB2） |
+| PHY IC | Mitsumi **MM1192**（HBS / AMI） |
+| ビットレート | 約 **9600 bps**（ビット周期 ≈ **104 µs**） |
+| 符号化 | AMI系。**パルスあり＝0**、なし＝1 |
+| フレーミング | AMI上の UART 風: start `0`、データ8bit **LSB先**、stop `1`（`0x00` は stop が崩れがち） |
+| バイト間隔 | バースト内で約 1.25 ms 空くことが多い |
 
-```
-Remocon TX  ████ 26-byte settings snapshot ████
-            └─ almost identical echo on DATA OUT
-
-Indoor unit      ░░░░ status / ACK (~45 bytes) ░░░░
-(~45–50 ms)
-
-Remocon                ▌ short trailing `21 03` (~100 ms)
-```
-
-- Master is the **remocon**: it pushes a full settings snapshot.
-- Unit replies with ACK + echoed fields (mode/fan/RH).
-- Looks more like event-driven snapshots than continuous register R/W (unlike H-Link).
+**日立 UART H-Link**（CN7・9600 8O1・ASCII `MT`/`ST`）ではない。  
+物理層の近い公開例はダイキン P1/P2 等の HBS/AMI（MM1192 / MAX22088）だが、**上位プロトコルはメーカー独自**。
 
 ---
 
-## 3. Remocon → unit frame (26 bytes)
+## 2. 1操作あたりのやり取り
 
-Skeleton:
+おおよそ 100 ms 程度:
 
 ```
-21 00 1A 02  01 01 01 01 01  A1  [CMD] [FAN]  1A 10  [m0 m1 m2] [RH]  [P] 00 14 01 02 B0 00  [CS]
-|---- header-ish ----|  |addr| |cmd| |fan|  |fixed| | mid  | |% | |pwr| |-- tail-ish --| |chk|
- idx: 0  1  2  3  4-------8   9   10    11   12 13  14 15 16  17  18  19-------------24   25
+リモコン送信  ████ 設定スナップショット 26バイト ████
+              └─ DATA OUT にほぼ同内容のエコー
+
+本体応答           ░░░░ 状態／ACK（約45バイト前後） ░░░░
+（約45–50 ms）
+
+リモコン                   ▌ 短い後続 `21 03`（約100 ms付近）
 ```
 
-### 3.1 CMD (idx 10) — run / mode
+- **主はリモコン**が「いまの設定一式」を投げる  
+- 本体が ACK とエコー（運転状態・風量・湿度など）を返す  
+- H-Link のようなレジスタ逐次 R/W より、**イベント駆動のスナップショット**に近い
 
-| Value | Meaning (observed) | Unit ACK (after `A1`) |
-|-------|--------------------|------------------------|
-| `60` | Stop / settings while stopped | `40` |
-| `C1` | Dehumidify run (reheat dehumidify) | `90` |
-| `A1` | Fan-only run (送風) | `88` |
+---
 
-### 3.2 FAN (idx 11) — airflow
+## 3. リモコン → 本体（26バイト）
 
-UI labels from the remocon panel:
+骨格:
 
-| Value | Label |
-|-------|--------|
-| `08` | 弱風 (weak) |
-| `04` | 強風 (strong) |
-| `02` | 急風 (rapid / “kyūfū”) |
+```
+21 00 1A 02  01 01 01 01 01  A1  [CMD] [風量]  1A 10  [m0 m1 m2] [湿度]  [P] 00 14 01 02 B0 00  [CS]
+|---- ヘッダ寄り ----|  |addr| |運転| |風量|  |固定気味| | 中間  | | %  | |ﾊ| |-- 後尾寄り --| |検査|
+ idx: 0  1  2  3  4-------8   9   10    11   12 13  14 15 16   17   18  19-------------24   25
+```
 
-### 3.3 RH (idx 17) — target humidity
+### 3.1 運転コマンド（idx10）
 
-- One byte, **decimal percent** (not BCD).
-- Confirmed pairs while stopped: `0x37` = 55%, `0x38` = 56%, `0x46` = 70%.
-- Unit status frame echoes the same value after `… 01 [RH] …`.
+| 値 | 意味（観測） | 本体ACK（`A1` の次） |
+|----|--------------|----------------------|
+| `60` | 停止／停止中の設定変更 | `40` |
+| `C1` | **再熱除湿**での運転（除湿運転） | `90` |
+| `A1` | **送風**運転 | `88` |
 
-### 3.4 Powerful dehumidify (idx 18)
+※ RK-NP12PV2 は再熱専用。カタログ上の「冷却除湿／自動除湿」は本機では選べない／別機種の話である点に注意。
 
-| Value | Meaning |
-|-------|---------|
-| `40` | Normal (powerful off) |
-| `90` | **Powerful on** (パワフル) |
+### 3.2 風量（idx11）
 
-Independently of FAN. Example (weak + powerful + 70%, running):
+リモコン表示との対応:
+
+| 値 | 表示 |
+|----|------|
+| `08` | **弱風** |
+| `04` | **強風** |
+| `02` | **急風** |
+
+### 3.3 目標湿度（idx17）
+
+- 1バイト、**十進の相対湿度 %**（BCDではない）
+- 停止中で確認: `0x37`＝55%、`0x38`＝56%、`0x46`＝70%
+- 本体応答にも `… 01 [湿度] …` でエコーされる
+
+### 3.4 パワフル（idx18）
+
+| 値 | 意味 |
+|----|------|
+| `40` | 通常（パワフルオフ） |
+| `90` | **パワフル**オン |
+
+風量バイトとは独立。例（弱風・パワフル・目標湿度70%・除湿運転）:
 
 ```
 … A1 C1 08 1A 10 86 22 01 46 90 00 14 01 02 B0 00 12
-         ^cmd ^weak          ^70% ^PWR
+        ^除湿 ^弱風         ^70% ^パワフル
 ```
 
-Unit ACK while powerful + weak showed fan nibble/echo as `24` (vs `08` without powerful).
+同条件の再キャプチャで **26バイト完全一致**を確認済み。  
+本体ACK側では、弱風エコーが `08` → **`24`** に変わる例あり。
 
-### 3.5 Mid bytes (idx 14–16)
+### 3.5 中間バイト（idx14–16）
 
-Varies across captures (`1A 64 C0`, `42 22 01`, `86 22 01`, `85 22 01`, …).  
-Likely mode/flags or other settings — **not fully mapped yet**.
+キャプチャにより `1A 64 C0` / `42 22 01` / `86 22 01` / `85 22 01` など変化。  
+モードや他設定の候補だが **未マップ**。
 
-### 3.6 Checksum (idx 25)
+### 3.6 チェックサム（idx25）
 
-Changes with payload. For the stopped weak 55↔56 pair, CS tracked RH by +1 (`57`/`58`).  
-Full algebraic rule across all frame variants is **not locked** yet (XOR-of-all-bytes was constant `C1` only on some early frames).
+ペイロードに追従して変化。停止・弱風の55%↔56%では CS も +1（`57`/`58`）。  
+全バリアント共通の厳密式は **未確定**（初期の一部フレームでは全体XORが `C1` 固定に見えたが、一般化できていない）。
 
 ---
 
-## 4. Unit → remocon status (sketch)
+## 4. 本体 → リモコン（応答の概形）
 
-Typical start:
+先頭付近:
 
 ```
-12 00 18 01 01 01 01 01 01 A1 [ACK] [FAN'] 1A … 01 [RH] …
+12 00 18 01 01 01 01 01 01 A1 [ACK] [風量'] 1A … 01 [湿度] …
 ```
 
-| ACK | Context |
-|-----|---------|
-| `40` | Stopped / config |
-| `90` | Dehumidify running |
-| `88` | Fan-only running |
+| ACK | 文脈 |
+|-----|------|
+| `40` | 停止／設定系 |
+| `90` | 除湿運転中 |
+| `88` | 送風運転中 |
 
-`FAN'` usually echoes remocon FAN; with powerful + weak, `08` → `24` was observed.
-
----
-
-## 5. Capture corpus (local work dirs)
-
-Named folders under the operator’s capture tree (not all uploaded here):
-
-| Folder / theme | What it established |
-|----------------|---------------------|
-| Idle + MM1192 pin map | A0=DO, A1=DI; AMI timing |
-| Humidity 55/56 while stopped | RH = idx17 decimal % |
-| Run / stop | CMD `C1` / `60`, ACK `90` / `40` |
-| Weak / strong / rapid fan | FAN `08` / `04` / `02` |
-| Fan-only mode | CMD `A1`, ACK `88` |
-| Powerful on weak @ 70% | idx18 `40`→`90`; repeat capture byte-identical |
+`風量'` はリモコン風量のエコーが基本。パワフル＋弱風では `24` を観測。
 
 ---
 
-## 6. Comparison with known Hitachi stacks
+## 5. 取得済み操作と確定事項
 
-| | This remocon bus | Public **H-Link** |
-|--|------------------|-------------------|
-| Connector | A/B 2-wire | Indoor CN7-style |
-| PHY | HBS AMI (MM1192) | UART 9600 8O1 |
-| Frames | Binary ~26 B snapshot | ASCII `MT`/`ST` |
-| Access model | Push full state | Parameter address R/W |
-| Reuse of esphome-hlink-ac | **No** | Yes (for H-Link units) |
-
-RK-NP12PV2 also has **dry-contact** paths (e.g. remote start/stop on CN7 in the install manual) — separate from this bus.
-
----
-
-## 7. Still open / next captures
-
-Priority for closing the map:
-
-1. Checksum formula across mid-byte variants  
-2. Meaning of idx 14–16  
-3. Idle / periodic traffic with no keypress  
-4. Easy timer / schedule frames  
-5. Inlet humidity display (long-press) — possible measured-RH in status  
-6. Confirm remaining UI modes on this reheat-only SKU  
+| テーマ | 分かったこと |
+|--------|----------------|
+| アイドル＋ピン対応 | A0＝DATA OUT、A1＝DATA IN、AMI周期 |
+| 停止中の湿度55／56 | 目標湿度＝idx17 十進% |
+| 運転開始／停止 | CMD `C1`／`60`、ACK `90`／`40` |
+| 弱風／強風／急風 | 風量 `08`／`04`／`02` |
+| 送風モード運転 | CMD `A1`、ACK `88` |
+| パワフル（弱風・70%） | idx18 `40`→`90`；再取で一致 |
 
 ---
 
-## 8. Safety / legal
+## 6. 既知の日立系との比較
 
-Informal reverse engineering for interoperability and home automation.  
-No warranty. Mains equipment — isolate properly; do not rely on this doc for life-safety control.
+| | 本バス（PC-RKF） | 公開されている **H-Link** |
+|--|------------------|---------------------------|
+| 接続 | A/B 2線 | 室内機 CN7 系など |
+| 物理層 | HBS AMI（MM1192） | UART 9600 8O1 |
+| フレーム | バイナリ約26Bスナップショット | ASCII `MT`／`ST` |
+| 操作モデル | 設定一式を送信 | パラメータアドレスの読書き |
+| esphome-hlink-ac | **流用不可** | H-Link機なら利用可 |
+
+RK-NP12PV2 の **遠方発停（据付要領の CN7 等）** は接点入力で、本バスとは別経路。
+
+---
+
+## 7. 未解決・次に取るとよいもの
+
+1. チェックサムの一般式（中間バイト変異を含む）  
+2. idx14–16 の意味  
+3. 無操作時の定期通信の有無  
+4. かんたんタイマー／スケジュール  
+5. 吸込湿度表示（長押し等）→ 実測湿度が応答に載るか  
+6. 本機UIに残る他モードの有無確認  
+
+---
+
+## 8. 注意
+
+相互運用・ホームオートメーション目的の非公式解析です。無保証。  
+商用電源機器のため、計測・接続は絶縁と感電対策を徹底してください。
