@@ -4,13 +4,28 @@ Notes from reverse-engineering a Hitachi **PC-RKF** wall remocon (used with indu
 
 ## Status
 
-Work in progress. Physical layer identified; application protocol not fully decoded yet.
+**Partial application decode (2026-09-30).**  
+Physical layer identified; remocon→unit **26-byte** snapshot mapped for run/stop, fan, humidity, powerful, and fan-only mode. Checksum and mid-bytes still open.
 
-## Key findings
+Full write-up: **[`docs/protocol-wip.md`](docs/protocol-wip.md)**
+
+### Protocol snapshot (MCU-side MM1192 TTL)
+
+| Field | Index | Known values |
+|-------|-------|----------------|
+| CMD | 10 | `60` stop/settings, `C1` dehumidify run, `A1` fan-only |
+| FAN | 11 | `08` 弱, `04` 強, `02` 急風 |
+| RH | 17 | decimal % (`0x37`=55, `0x38`=56, `0x46`=70, …) |
+| Powerful | 18 | `40` off, `90` on |
+| Unit ACK | (status) | `40` / `90` / `88` for stop / dehum run / fan-only |
+
+Bit timing ≈ **9600 AMI** (pulse = 0). Probed MM1192 pin1 DATA OUT + pin6 DATA IN.
+
+## Key hardware findings
 
 | Item | Value |
 |------|--------|
-| Remocon model | PC-RKF (label example: `PC-RKF H28B RKF-196060`) |
+| Remocon model | PC-RKF (label example: `PC-RKF H268 RKF-196060`) |
 | PCB silk | `PC-ARF` (likely shared with other Hitachi wall remocons) |
 | Bus terminals | **REMOCON A / B** (2-wire) |
 | PHY transceiver | **MinebeaMitsumi MM1192** (HBS-compatible, AMI) |
@@ -20,7 +35,7 @@ Work in progress. Physical layer identified; application protocol not fully deco
 
 This bus is **not** the UART “H-Link CN7” (9600 8O1, `MT`/`ST`) used by many Hitachi split ACs and by projects such as [lumixen/esphome-hlink-ac](https://github.com/lumixen/esphome-hlink-ac). Same brand, different physical interface.
 
-## Photos
+## Photos / teardown
 
 See [`docs/photos/`](docs/photos/) and [`docs/teardown.md`](docs/teardown.md).
 
